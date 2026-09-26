@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { loadExpenses, saveExpenses } from "@/lib/storage";
 import type { Expense, ExpenseInput } from "@/lib/types";
 import { generateId } from "@/lib/utils";
@@ -10,24 +10,31 @@ export function useExpenses() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const hasLoaded = useRef(false);
 
   // Load once on mount (client only).
   useEffect(() => {
     const { expenses: loaded, error } = loadExpenses();
     setExpenses(loaded);
     setLoadError(error);
-    hasLoaded.current = true;
     setIsLoading(false);
   }, []);
 
-  // Persist on every change, but not before the initial load has completed
-  // (otherwise we'd overwrite storage with an empty array on first render).
+  // Persist on every change, but not before the initial load has completed.
+  //
+  // This gate must be real state (`isLoading`), not a ref flipped inside the
+  // load effect: a ref mutates synchronously, so under React's mount ->
+  // cleanup -> mount cycle (Strict Mode, on by default here) this effect
+  // would see the guard already open on the *first* pass, while its own
+  // `expenses` closure still held the stale initial `[]` - overwriting
+  // freshly loaded storage with an empty array before the loaded state had
+  // even rendered. Gating on `isLoading` state instead means both `isLoading`
+  // and `expenses` always update in the same render, so this effect never
+  // observes one without the other.
   useEffect(() => {
-    if (!hasLoaded.current) return;
+    if (isLoading) return;
     const { error } = saveExpenses(expenses);
     setSaveError(error);
-  }, [expenses]);
+  }, [expenses, isLoading]);
 
   const addExpense = useCallback((input: ExpenseInput): Expense => {
     const now = new Date().toISOString();
