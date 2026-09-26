@@ -1,4 +1,4 @@
-import { CATEGORY_IDS, type CategoryId, getCategoryLabel } from "./categories";
+import type { CategoryId, CategoryInfo } from "./categories";
 import type { Expense } from "./types";
 import { formatMonthKey, monthKey } from "./utils";
 
@@ -20,17 +20,37 @@ export function previousMonthKey(key: string): string {
 export interface CategoryTotal {
   category: CategoryId;
   label: string;
+  colorVar: string;
   amount: number;
 }
 
-/** Total spend per category, only categories with a nonzero total, sorted descending. */
-export function categoryTotals(expenses: Expense[]): CategoryTotal[] {
+/**
+ * Total spend per category, only categories with a nonzero total, sorted
+ * descending. `categories` is the live registry (built-in + user-created);
+ * an expense whose category id isn't in it (e.g. a custom category that was
+ * since deleted) still shows up, labeled by its raw id and using the
+ * neutral muted color, rather than silently disappearing from the totals.
+ */
+export function categoryTotals(expenses: Expense[], categories: CategoryInfo[]): CategoryTotal[] {
   const totals = new Map<CategoryId, number>();
   for (const e of expenses) {
     totals.set(e.category, (totals.get(e.category) ?? 0) + e.amount);
   }
-  return CATEGORY_IDS.filter((id) => (totals.get(id) ?? 0) > 0)
-    .map((id) => ({ category: id, label: getCategoryLabel(id), amount: totals.get(id) ?? 0 }))
+  const categoryMap = new Map(categories.map((c) => [c.id, c]));
+  const unknownIds = Array.from(totals.keys()).filter((id) => !categoryMap.has(id));
+  const allIds = [...categories.map((c) => c.id), ...unknownIds];
+
+  return allIds
+    .filter((id) => (totals.get(id) ?? 0) > 0)
+    .map((id) => {
+      const info = categoryMap.get(id);
+      return {
+        category: id,
+        label: info?.label ?? id,
+        colorVar: info?.colorVar ?? "--cat-muted",
+        amount: totals.get(id) ?? 0,
+      };
+    })
     .sort((a, b) => b.amount - a.amount);
 }
 
@@ -61,14 +81,14 @@ export interface DashboardSummary {
   topCategory: CategoryTotal | null;
 }
 
-export function computeSummary(expenses: Expense[]): DashboardSummary {
+export function computeSummary(expenses: Expense[], categories: CategoryInfo[]): DashboardSummary {
   const total = sumAmount(expenses);
   const thisKey = currentMonthKey();
   const lastKey = previousMonthKey(thisKey);
   const thisMonth = sumAmount(expenses.filter((e) => monthKey(e.date) === thisKey));
   const lastMonth = sumAmount(expenses.filter((e) => monthKey(e.date) === lastKey));
   const thisMonthDeltaPercent = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : null;
-  const categories = categoryTotals(expenses);
+  const totals = categoryTotals(expenses, categories);
 
   return {
     total,
@@ -76,6 +96,6 @@ export function computeSummary(expenses: Expense[]): DashboardSummary {
     thisMonth,
     lastMonth,
     thisMonthDeltaPercent,
-    topCategory: categories[0] ?? null,
+    topCategory: totals[0] ?? null,
   };
 }

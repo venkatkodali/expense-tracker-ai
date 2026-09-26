@@ -9,12 +9,15 @@ import { ExpenseFiltersBar } from "@/components/ExpenseFilters";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { ExpenseList } from "@/components/ExpenseList";
 import { Header } from "@/components/Header";
+import { ManageCategoriesModal } from "@/components/ManageCategoriesModal";
 import { Modal } from "@/components/Modal";
 import { ChartSkeleton, ListSkeleton, SummarySkeleton } from "@/components/Skeletons";
 import { SummaryCards } from "@/components/SummaryCards";
 import { TrendChart } from "@/components/TrendChart";
 import { useToast } from "@/components/ToastProvider";
+import { useCategories } from "@/hooks/useCategories";
 import { useExpenses } from "@/hooks/useExpenses";
+import type { CategoryInfo } from "@/lib/categories";
 import { downloadExpensesCsv } from "@/lib/csv";
 import { DEFAULT_FILTERS, filterExpenses } from "@/lib/filterExpenses";
 import { categoryTotals, computeSummary, monthlyTotals } from "@/lib/stats";
@@ -22,18 +25,26 @@ import type { Expense, ExpenseFilters, ExpenseInput } from "@/lib/types";
 
 type ModalState = { mode: "add" } | { mode: "edit"; expense: Expense } | null;
 
+const FALLBACK_CATEGORY_ID = "other";
+
 export default function DashboardPage() {
-  const { expenses, isLoading, loadError, saveError, addExpense, updateExpense, deleteExpense } =
+  const { expenses, isLoading, loadError, saveError, addExpense, updateExpense, deleteExpense, reassignCategory } =
     useExpenses();
+  const categories = useCategories();
   const { showToast } = useToast();
 
   const [filters, setFilters] = useState<ExpenseFilters>(DEFAULT_FILTERS);
   const [modal, setModal] = useState<ModalState>(null);
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
+  const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
+  const [pendingCategoryDelete, setPendingCategoryDelete] = useState<CategoryInfo | null>(null);
 
   const filtered = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
-  const summary = useMemo(() => computeSummary(filtered), [filtered]);
-  const categoryData = useMemo(() => categoryTotals(filtered), [filtered]);
+  const summary = useMemo(() => computeSummary(filtered, categories.categories), [filtered, categories.categories]);
+  const categoryData = useMemo(
+    () => categoryTotals(filtered, categories.categories),
+    [filtered, categories.categories],
+  );
   const trendData = useMemo(() => monthlyTotals(filtered, 6), [filtered]);
 
   const hasAnyExpenses = expenses.length > 0;
@@ -59,12 +70,25 @@ export default function DashboardPage() {
     showToast("Expense deleted.");
   };
 
+  const handleConfirmCategoryDelete = () => {
+    if (!pendingCategoryDelete) return;
+    const affectedCount = expenses.filter((e) => e.category === pendingCategoryDelete.id).length;
+    reassignCategory(pendingCategoryDelete.id, FALLBACK_CATEGORY_ID);
+    categories.deleteCategory(pendingCategoryDelete.id);
+    setPendingCategoryDelete(null);
+    showToast(
+      affectedCount > 0
+        ? `Deleted "${pendingCategoryDelete.label}" — ${affectedCount} expense${affectedCount === 1 ? "" : "s"} moved to Other.`
+        : `Deleted "${pendingCategoryDelete.label}".`,
+    );
+  };
+
   const handleExport = () => {
     if (filtered.length === 0) {
       showToast("Nothing to export for the current filters.", "error");
       return;
     }
-    downloadExpensesCsv(filtered, `expenses-${new Date().toISOString().slice(0, 10)}.csv`);
+    downloadExpensesCsv(filtered, categories.getLabel, `expenses-${new Date().toISOString().slice(0, 10)}.csv`);
     showToast(`Exported ${filtered.length} expense${filtered.length === 1 ? "" : "s"} to CSV.`);
   };
 
@@ -100,7 +124,12 @@ export default function DashboardPage() {
         </div>
 
         {/* Filters */}
-        <ExpenseFiltersBar filters={filters} onChange={setFilters} />
+        <ExpenseFiltersBar
+          categories={categories.categories}
+          filters={filters}
+          onChange={setFilters}
+          onManageCategories={() => setIsManageCategoriesOpen(true)}
+        />
 
         {/* List */}
         <div className="rounded-xl border border-hairline bg-surface p-4 sm:p-5">
@@ -145,6 +174,7 @@ export default function DashboardPage() {
           ) : (
             <ExpenseList
               expenses={filtered}
+              categories={categories.categories}
               onEdit={(expense) => setModal({ mode: "edit", expense })}
               onDelete={(expense) => setPendingDelete(expense)}
             />
@@ -158,10 +188,12 @@ export default function DashboardPage() {
           onClose={() => setModal(null)}
         >
           <ExpenseForm
+            categories={categories.categories}
             initialValues={modal.mode === "edit" ? modal.expense : undefined}
             submitLabel={modal.mode === "add" ? "Add expense" : "Save changes"}
             onSubmit={modal.mode === "add" ? handleAdd : handleEdit}
             onCancel={() => setModal(null)}
+            onManageCategories={() => setIsManageCategoriesOpen(true)}
           />
         </Modal>
       )}
@@ -172,6 +204,25 @@ export default function DashboardPage() {
           description={`This will permanently delete "${pendingDelete.description}" (${pendingDelete.date}). This can't be undone.`}
           onConfirm={handleConfirmDelete}
           onCancel={() => setPendingDelete(null)}
+        />
+      )}
+
+      {isManageCategoriesOpen && (
+        <ManageCategoriesModal
+          categories={categories.categories}
+          addCategory={categories.addCategory}
+          renameCategory={categories.renameCategory}
+          onClose={() => setIsManageCategoriesOpen(false)}
+          onRequestDelete={(category) => setPendingCategoryDelete(category)}
+        />
+      )}
+
+      {pendingCategoryDelete && (
+        <ConfirmDialog
+          title="Delete category?"
+          description={`Any expenses in "${pendingCategoryDelete.label}" will be moved to "Other". This can't be undone.`}
+          onConfirm={handleConfirmCategoryDelete}
+          onCancel={() => setPendingCategoryDelete(null)}
         />
       )}
     </div>

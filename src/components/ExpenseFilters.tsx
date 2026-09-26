@@ -1,7 +1,7 @@
 "use client";
 
-import { Search } from "lucide-react";
-import { CATEGORIES, type CategoryId } from "@/lib/categories";
+import { Plus, Search } from "lucide-react";
+import type { CategoryId, CategoryInfo } from "@/lib/categories";
 import type { DatePreset, ExpenseFilters as ExpenseFiltersState } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -14,11 +14,13 @@ const PRESETS: { id: DatePreset; label: string }[] = [
 ];
 
 interface ExpenseFiltersProps {
+  categories: CategoryInfo[];
   filters: ExpenseFiltersState;
   onChange: (filters: ExpenseFiltersState) => void;
+  onManageCategories: () => void;
 }
 
-export function ExpenseFiltersBar({ filters, onChange }: ExpenseFiltersProps) {
+export function ExpenseFiltersBar({ categories, filters, onChange, onManageCategories }: ExpenseFiltersProps) {
   const toggleCategory = (id: CategoryId) => {
     const isSelected = filters.categories.includes(id);
     onChange({
@@ -91,7 +93,7 @@ export function ExpenseFiltersBar({ filters, onChange }: ExpenseFiltersProps) {
       {/* Category filter chips */}
       <div className="flex flex-wrap items-center gap-1.5 border-t border-hairline pt-3">
         <span className="mr-1 text-xs font-medium text-muted">Category</span>
-        {CATEGORIES.map((c) => {
+        {categories.map((c) => {
           const isSelected = filters.categories.includes(c.id);
           return (
             <button
@@ -106,7 +108,7 @@ export function ExpenseFiltersBar({ filters, onChange }: ExpenseFiltersProps) {
             >
               <span
                 className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: `var(--cat-${c.id})` }}
+                style={{ backgroundColor: `var(${c.colorVar})` }}
                 aria-hidden="true"
               />
               <span className={isSelected ? "text-primary" : undefined}>{c.label}</span>
@@ -117,11 +119,19 @@ export function ExpenseFiltersBar({ filters, onChange }: ExpenseFiltersProps) {
           <button
             type="button"
             onClick={() => onChange({ ...filters, categories: [] })}
-            className="ml-1 text-xs font-medium text-accent hover:underline"
+            className="text-xs font-medium text-accent hover:underline"
           >
             Clear
           </button>
         )}
+        <button
+          type="button"
+          onClick={onManageCategories}
+          className="ml-1 flex items-center gap-1 rounded-full border border-dashed border-hairline px-2.5 py-1 text-xs font-medium text-secondary hover:bg-page"
+        >
+          <Plus className="h-3 w-3" />
+          New
+        </button>
       </div>
     </div>
   );

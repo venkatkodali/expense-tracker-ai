@@ -1,30 +1,32 @@
 "use client";
 
 import { Pencil, Trash2 } from "lucide-react";
-import { getCategoryLabel } from "@/lib/categories";
+import type { CategoryInfo } from "@/lib/categories";
 import type { Expense } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface ExpenseListProps {
   expenses: Expense[];
+  categories: CategoryInfo[];
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
 }
 
-function CategoryBadge({ category }: { category: Expense["category"] }) {
+function CategoryBadge({ category, categories }: { category: Expense["category"]; categories: CategoryInfo[] }) {
+  const info = categories.find((c) => c.id === category);
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-page px-2.5 py-1 text-xs font-medium text-secondary">
       <span
         className="h-2 w-2 rounded-full"
-        style={{ backgroundColor: `var(--cat-${category})` }}
+        style={{ backgroundColor: `var(${info?.colorVar ?? "--cat-muted"})` }}
         aria-hidden="true"
       />
-      {getCategoryLabel(category)}
+      {info?.label ?? category}
     </span>
   );
 }
 
-export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
+export function ExpenseList({ expenses, categories, onEdit, onDelete }: ExpenseListProps) {
   return (
     <>
       {/* Desktop / tablet table */}
@@ -46,7 +48,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
               <td className="whitespace-nowrap py-3 pl-1 text-secondary">{formatDate(expense.date)}</td>
               <td className="py-3 pr-4 text-primary">{expense.description}</td>
               <td className="py-3">
-                <CategoryBadge category={expense.category} />
+                <CategoryBadge category={expense.category} categories={categories} />
               </td>
               <td className="whitespace-nowrap py-3 pr-1 text-right font-semibold tabular-nums text-primary">
                 {formatCurrency(expense.amount)}
@@ -90,7 +92,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
               </p>
             </div>
             <div className="mt-2 flex items-center justify-between">
-              <CategoryBadge category={expense.category} />
+              <CategoryBadge category={expense.category} categories={categories} />
               <div className="flex gap-1">
                 <button
                   type="button"

@@ -1,7 +1,6 @@
 "use client";
 
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { categoryColorVar } from "@/lib/categories";
 import type { CategoryTotal } from "@/lib/stats";
 import { formatCurrency } from "@/lib/utils";
 
@@ -57,7 +56,7 @@ export function CategoryBarChart({ data }: CategoryBarChartProps) {
           <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--gridline)", opacity: 0.4 }} />
           <Bar dataKey="amount" radius={[0, 4, 4, 0]} maxBarSize={24}>
             {data.map((entry) => (
-              <Cell key={entry.category} fill={categoryColorVar(entry.category)} />
+              <Cell key={entry.category} fill={`var(${entry.colorVar})`} />
             ))}
             <LabelList
               dataKey="amount"

@@ -32,6 +32,15 @@
   --cat-shopping: #eda100;
   --cat-bills: #e87ba4;
   --cat-other: #008300;
+
+  /* Reserved for the first two user-created categories, in creation order -
+     slots 7-8 of the same validated 8-slot categorical order as the six
+     above (see the dataviz palette reference). Never reassign or generate
+     further hues past these; additional custom categories use --cat-muted
+     and rely on their text label for identity instead of a unique color. */
+  --cat-custom-1: #4a3aa7;
+  --cat-custom-2: #e34948;
+  --cat-muted: #898781;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -55,6 +64,10 @@
     --cat-shopping: #c98500;
     --cat-bills: #d55181;
     --cat-other: #008300;
+
+    --cat-custom-1: #9085e9;
+    --cat-custom-2: #e66767;
+    --cat-muted: #898781;
   }
 }
 
@@ -78,6 +91,10 @@
   --cat-shopping: #c98500;
   --cat-bills: #d55181;
   --cat-other: #008300;
+
+  --cat-custom-1: #9085e9;
+  --cat-custom-2: #e66767;
+  --cat-muted: #898781;
 }
 
 * {

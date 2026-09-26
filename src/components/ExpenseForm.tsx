@@ -2,16 +2,18 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { CATEGORIES } from "@/lib/categories";
+import type { CategoryInfo } from "@/lib/categories";
 import type { ExpenseInput } from "@/lib/types";
 import { expenseFormSchema, type ExpenseFormValues } from "@/lib/validation";
 import { toIsoDate } from "@/lib/utils";
 
 interface ExpenseFormProps {
+  categories: CategoryInfo[];
   initialValues?: ExpenseInput;
   submitLabel: string;
   onSubmit: (input: ExpenseInput) => void;
   onCancel: () => void;
+  onManageCategories: () => void;
 }
 
 const inputClass =
@@ -19,7 +21,14 @@ const inputClass =
 const labelClass = "mb-1 block text-sm font-medium text-primary";
 const errorClass = "mt-1 text-xs text-[var(--status-critical)]";
 
-export function ExpenseForm({ initialValues, submitLabel, onSubmit, onCancel }: ExpenseFormProps) {
+export function ExpenseForm({
+  categories,
+  initialValues,
+  submitLabel,
+  onSubmit,
+  onCancel,
+  onManageCategories,
+}: ExpenseFormProps) {
   const {
     register,
     handleSubmit,
@@ -29,10 +38,16 @@ export function ExpenseForm({ initialValues, submitLabel, onSubmit, onCancel }: 
     defaultValues: {
       date: initialValues?.date ?? toIsoDate(new Date()),
       amount: initialValues ? String(initialValues.amount) : "",
-      category: initialValues?.category ?? CATEGORIES[0].id,
+      category: initialValues?.category ?? categories[0]?.id ?? "",
       description: initialValues?.description ?? "",
     },
   });
+
+  // An expense can reference a category that's since been deleted (its
+  // custom category was removed). Surface that instead of the <select>
+  // silently snapping to whatever the first option happens to be.
+  const isOrphanCategory =
+    !!initialValues && !categories.some((c) => c.id === initialValues.category);
 
   const submit = handleSubmit((values) => {
     onSubmit({
@@ -83,16 +98,28 @@ export function ExpenseForm({ initialValues, submitLabel, onSubmit, onCancel }: 
       </div>
 
       <div>
-        <label htmlFor="category" className={labelClass}>
-          Category
-        </label>
+        <div className="mb-1 flex items-center justify-between">
+          <label htmlFor="category" className={labelClass.replace("mb-1 ", "")}>
+            Category
+          </label>
+          <button
+            type="button"
+            onClick={onManageCategories}
+            className="text-xs font-medium text-accent hover:underline"
+          >
+            Manage categories
+          </button>
+        </div>
         <select
           id="category"
           className={inputClass}
           {...register("category")}
           aria-invalid={!!errors.category}
         >
-          {CATEGORIES.map((c) => (
+          {isOrphanCategory && (
+            <option value={initialValues!.category}>{initialValues!.category} (deleted)</option>
+          )}
+          {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.label}
             </option>

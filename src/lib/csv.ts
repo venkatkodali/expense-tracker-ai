@@ -1,4 +1,3 @@
-import { getCategoryLabel } from "./categories";
 import type { Expense } from "./types";
 
 function escapeCsvCell(value: string): string {
@@ -8,11 +7,12 @@ function escapeCsvCell(value: string): string {
   return value;
 }
 
-export function expensesToCsv(expenses: Expense[]): string {
+/** `getLabel` resolves a category id to its display label (built-in or custom). */
+export function expensesToCsv(expenses: Expense[], getLabel: (id: string) => string): string {
   const header = ["Date", "Category", "Description", "Amount"];
   const rows = expenses.map((e) => [
     e.date,
-    getCategoryLabel(e.category),
+    getLabel(e.category),
     e.description,
     e.amount.toFixed(2),
   ]);
@@ -21,8 +21,12 @@ export function expensesToCsv(expenses: Expense[]): string {
     .join("\n");
 }
 
-export function downloadExpensesCsv(expenses: Expense[], filename = "expenses.csv"): void {
-  const csv = expensesToCsv(expenses);
+export function downloadExpensesCsv(
+  expenses: Expense[],
+  getLabel: (id: string) => string,
+  filename = "expenses.csv",
+): void {
+  const csv = expensesToCsv(expenses, getLabel);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

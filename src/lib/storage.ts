@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { CATEGORY_IDS } from "./categories";
 import type { Expense } from "./types";
 
 export const STORAGE_KEY = "expense-tracker:expenses:v1";
@@ -8,7 +7,12 @@ const storedExpenseSchema = z.object({
   id: z.string(),
   date: z.string(),
   amount: z.number(),
-  category: z.enum(CATEGORY_IDS as [string, ...string[]]),
+  // Not a fixed enum: a stored expense may reference a user-created
+  // category, so any non-empty id is structurally valid here. A category
+  // that no longer exists (e.g. its custom category was deleted before this
+  // reassignment logic existed, or storage was edited by hand) is handled
+  // at display time by falling back to the id itself as its own label.
+  category: z.string().min(1),
   description: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),

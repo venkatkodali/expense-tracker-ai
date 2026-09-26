@@ -60,6 +60,17 @@ export function useExpenses() {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  /** Bulk-reassigns every expense in `fromCategoryId` to `toCategoryId` (used when a category is deleted). */
+  const reassignCategory = useCallback((fromCategoryId: string, toCategoryId: string) => {
+    setExpenses((prev) =>
+      prev.map((e) =>
+        e.category === fromCategoryId
+          ? { ...e, category: toCategoryId, updatedAt: new Date().toISOString() }
+          : e,
+      ),
+    );
+  }, []);
+
   return {
     expenses,
     isLoading,
@@ -68,5 +79,6 @@ export function useExpenses() {
     addExpense,
     updateExpense,
     deleteExpense,
+    reassignCategory,
   };
 }
