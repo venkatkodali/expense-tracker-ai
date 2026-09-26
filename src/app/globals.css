@@ -2,26 +2,175 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens. Light values are the default; dark values apply both when
+ * the OS prefers dark (and no explicit choice was made) and when the user
+ * has explicitly toggled dark mode via [data-theme="dark"] on <html>.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --page-bg: #f9f9f7;
+  --surface: #ffffff;
+  --chart-surface: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --gridline: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border-hairline: rgba(11, 11, 11, 0.1);
+  --accent: #2a78d6;
+  --accent-hover: #2263b3;
+  --success-text: #006300;
+
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  --cat-food: #2a78d6;
+  --cat-transportation: #eb6834;
+  --cat-entertainment: #1baf7a;
+  --cat-shopping: #eda100;
+  --cat-bills: #e87ba4;
+  --cat-other: #008300;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --page-bg: #0d0d0d;
+    --surface: #17171a;
+    --chart-surface: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --gridline: #2c2c2a;
+    --baseline: #383835;
+    --border-hairline: rgba(255, 255, 255, 0.1);
+    --accent: #3987e5;
+    --accent-hover: #5a9eeb;
+    --success-text: #0ca30c;
+
+    --cat-food: #3987e5;
+    --cat-transportation: #d95926;
+    --cat-entertainment: #199e70;
+    --cat-shopping: #c98500;
+    --cat-bills: #d55181;
+    --cat-other: #008300;
   }
 }
 
+:root[data-theme="dark"] {
+  --page-bg: #0d0d0d;
+  --surface: #17171a;
+  --chart-surface: #1a1a19;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --gridline: #2c2c2a;
+  --baseline: #383835;
+  --border-hairline: rgba(255, 255, 255, 0.1);
+  --accent: #3987e5;
+  --accent-hover: #5a9eeb;
+  --success-text: #0ca30c;
+
+  --cat-food: #3987e5;
+  --cat-transportation: #d95926;
+  --cat-entertainment: #199e70;
+  --cat-shopping: #c98500;
+  --cat-bills: #d55181;
+  --cat-other: #008300;
+}
+
+* {
+  border-color: var(--border-hairline);
+}
+
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  background: var(--page-bg);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+
+  .bg-page {
+    background-color: var(--page-bg);
+  }
+  .bg-surface {
+    background-color: var(--surface);
+  }
+  .bg-chart-surface {
+    background-color: var(--chart-surface);
+  }
+  .text-primary {
+    color: var(--text-primary);
+  }
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+  .text-muted {
+    color: var(--text-muted);
+  }
+  .border-hairline {
+    border-color: var(--border-hairline);
+  }
+  .text-accent {
+    color: var(--accent);
+  }
+  .bg-accent {
+    background-color: var(--accent);
+  }
+  .hover\:bg-accent-hover:hover {
+    background-color: var(--accent-hover);
+  }
+  .ring-accent {
+    --tw-ring-color: var(--accent);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-toast-in {
+  animation: toast-in 160ms ease-out;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-modal-in {
+  animation: modal-in 140ms ease-out;
+}
+
+@keyframes pulse-bg {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.animate-pulse-bg {
+  animation: pulse-bg 1.5s ease-in-out infinite;
 }

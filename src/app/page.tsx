@@ -1,101 +1,179 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { Download, PlusCircle } from "lucide-react";
+import { useMemo, useState } from "react";
+import { CategoryBarChart } from "@/components/CategoryBarChart";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { EmptyState } from "@/components/EmptyState";
+import { ExpenseFiltersBar } from "@/components/ExpenseFilters";
+import { ExpenseForm } from "@/components/ExpenseForm";
+import { ExpenseList } from "@/components/ExpenseList";
+import { Header } from "@/components/Header";
+import { Modal } from "@/components/Modal";
+import { ChartSkeleton, ListSkeleton, SummarySkeleton } from "@/components/Skeletons";
+import { SummaryCards } from "@/components/SummaryCards";
+import { TrendChart } from "@/components/TrendChart";
+import { useToast } from "@/components/ToastProvider";
+import { useExpenses } from "@/hooks/useExpenses";
+import { downloadExpensesCsv } from "@/lib/csv";
+import { DEFAULT_FILTERS, filterExpenses } from "@/lib/filterExpenses";
+import { categoryTotals, computeSummary, monthlyTotals } from "@/lib/stats";
+import type { Expense, ExpenseFilters, ExpenseInput } from "@/lib/types";
+
+type ModalState = { mode: "add" } | { mode: "edit"; expense: Expense } | null;
+
+export default function DashboardPage() {
+  const { expenses, isLoading, loadError, saveError, addExpense, updateExpense, deleteExpense } =
+    useExpenses();
+  const { showToast } = useToast();
+
+  const [filters, setFilters] = useState<ExpenseFilters>(DEFAULT_FILTERS);
+  const [modal, setModal] = useState<ModalState>(null);
+  const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
+
+  const filtered = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
+  const summary = useMemo(() => computeSummary(filtered), [filtered]);
+  const categoryData = useMemo(() => categoryTotals(filtered), [filtered]);
+  const trendData = useMemo(() => monthlyTotals(filtered, 6), [filtered]);
+
+  const hasAnyExpenses = expenses.length > 0;
+  const hasFilteredResults = filtered.length > 0;
+
+  const handleAdd = (input: ExpenseInput) => {
+    addExpense(input);
+    setModal(null);
+    showToast("Expense added.");
+  };
+
+  const handleEdit = (input: ExpenseInput) => {
+    if (modal?.mode !== "edit") return;
+    updateExpense(modal.expense.id, input);
+    setModal(null);
+    showToast("Expense updated.");
+  };
+
+  const handleConfirmDelete = () => {
+    if (!pendingDelete) return;
+    deleteExpense(pendingDelete.id);
+    setPendingDelete(null);
+    showToast("Expense deleted.");
+  };
+
+  const handleExport = () => {
+    if (filtered.length === 0) {
+      showToast("Nothing to export for the current filters.", "error");
+      return;
+    }
+    downloadExpensesCsv(filtered, `expenses-${new Date().toISOString().slice(0, 10)}.csv`);
+    showToast(`Exported ${filtered.length} expense${filtered.length === 1 ? "" : "s"} to CSV.`);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="min-h-screen bg-page">
+      <Header />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+        {loadError && (
+          <div className="rounded-lg border border-hairline bg-surface px-4 py-3 text-sm text-[var(--status-critical)]">
+            {loadError}
+          </div>
+        )}
+        {saveError && (
+          <div className="rounded-lg border border-hairline bg-surface px-4 py-3 text-sm text-[var(--status-critical)]">
+            {saveError}
+          </div>
+        )}
+
+        {/* Summary */}
+        {isLoading ? <SummarySkeleton /> : <SummaryCards summary={summary} />}
+
+        {/* Charts */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-hairline bg-surface p-4 sm:p-5">
+            <h2 className="mb-3 text-sm font-semibold text-primary">Spending by category</h2>
+            {isLoading ? <ChartSkeleton /> : <CategoryBarChart data={categoryData} />}
+          </div>
+          <div className="rounded-xl border border-hairline bg-surface p-4 sm:p-5">
+            <h2 className="mb-3 text-sm font-semibold text-primary">Monthly trend</h2>
+            {isLoading ? <ChartSkeleton /> : <TrendChart data={trendData} />}
+          </div>
+        </div>
+
+        {/* Filters */}
+        <ExpenseFiltersBar filters={filters} onChange={setFilters} />
+
+        {/* List */}
+        <div className="rounded-xl border border-hairline bg-surface p-4 sm:p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-primary">
+              Expenses <span className="text-muted">({filtered.length})</span>
+            </h2>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleExport}
+                className="flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-2 text-sm font-medium text-primary hover:bg-page"
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => setModal({ mode: "add" })}
+                className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Add expense
+              </button>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <ListSkeleton />
+          ) : !hasAnyExpenses ? (
+            <EmptyState
+              title="No expenses yet"
+              description="Add your first expense to start tracking your spending."
+              actionLabel="Add expense"
+              onAction={() => setModal({ mode: "add" })}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          ) : !hasFilteredResults ? (
+            <EmptyState
+              title="No matching expenses"
+              description="Try adjusting your search, category, or date filters."
+            />
+          ) : (
+            <ExpenseList
+              expenses={filtered}
+              onEdit={(expense) => setModal({ mode: "edit", expense })}
+              onDelete={(expense) => setPendingDelete(expense)}
+            />
+          )}
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+      {modal && (
+        <Modal
+          title={modal.mode === "add" ? "Add expense" : "Edit expense"}
+          onClose={() => setModal(null)}
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+          <ExpenseForm
+            initialValues={modal.mode === "edit" ? modal.expense : undefined}
+            submitLabel={modal.mode === "add" ? "Add expense" : "Save changes"}
+            onSubmit={modal.mode === "add" ? handleAdd : handleEdit}
+            onCancel={() => setModal(null)}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </Modal>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete expense?"
+          description={`This will permanently delete "${pendingDelete.description}" (${pendingDelete.date}). This can't be undone.`}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }
