@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ExpenseFiltersBar } from "@/components/ExpenseFilters";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { ExpenseList } from "@/components/ExpenseList";
+import { ExportDrawer } from "@/components/ExportDrawer";
 import { Header } from "@/components/Header";
 import { Modal } from "@/components/Modal";
 import { ChartSkeleton, ListSkeleton, SummarySkeleton } from "@/components/Skeletons";
@@ -15,7 +16,6 @@ import { SummaryCards } from "@/components/SummaryCards";
 import { TrendChart } from "@/components/TrendChart";
 import { useToast } from "@/components/ToastProvider";
 import { useExpenses } from "@/hooks/useExpenses";
-import { downloadExpensesCsv } from "@/lib/csv";
 import { DEFAULT_FILTERS, filterExpenses } from "@/lib/filterExpenses";
 import { categoryTotals, computeSummary, monthlyTotals } from "@/lib/stats";
 import type { Expense, ExpenseFilters, ExpenseInput } from "@/lib/types";
@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [filters, setFilters] = useState<ExpenseFilters>(DEFAULT_FILTERS);
   const [modal, setModal] = useState<ModalState>(null);
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
   const filtered = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
   const summary = useMemo(() => computeSummary(filtered), [filtered]);
@@ -59,13 +60,8 @@ export default function DashboardPage() {
     showToast("Expense deleted.");
   };
 
-  const handleExport = () => {
-    if (filtered.length === 0) {
-      showToast("Nothing to export for the current filters.", "error");
-      return;
-    }
-    downloadExpensesCsv(filtered, `expenses-${new Date().toISOString().slice(0, 10)}.csv`);
-    showToast(`Exported ${filtered.length} expense${filtered.length === 1 ? "" : "s"} to CSV.`);
+  const handleExported = (count: number, format: string) => {
+    showToast(`Exported ${count} expense${count === 1 ? "" : "s"} as ${format.toUpperCase()}.`);
   };
 
   return (
@@ -111,11 +107,11 @@ export default function DashboardPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={handleExport}
+                onClick={() => setIsExportOpen(true)}
                 className="flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-2 text-sm font-medium text-primary hover:bg-page"
               >
                 <Download className="h-4 w-4" />
-                Export CSV
+                Export Data
               </button>
               <button
                 type="button"
@@ -172,6 +168,14 @@ export default function DashboardPage() {
           description={`This will permanently delete "${pendingDelete.description}" (${pendingDelete.date}). This can't be undone.`}
           onConfirm={handleConfirmDelete}
           onCancel={() => setPendingDelete(null)}
+        />
+      )}
+
+      {isExportOpen && (
+        <ExportDrawer
+          expenses={expenses}
+          onClose={() => setIsExportOpen(false)}
+          onExported={handleExported}
         />
       )}
     </div>
