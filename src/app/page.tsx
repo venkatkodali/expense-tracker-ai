@@ -59,13 +59,10 @@ export default function DashboardPage() {
     showToast("Expense deleted.");
   };
 
+  // V1: exports every expense (unfiltered) as CSV. Keep this simple.
   const handleExport = () => {
-    if (filtered.length === 0) {
-      showToast("Nothing to export for the current filters.", "error");
-      return;
-    }
-    downloadExpensesCsv(filtered, `expenses-${new Date().toISOString().slice(0, 10)}.csv`);
-    showToast(`Exported ${filtered.length} expense${filtered.length === 1 ? "" : "s"} to CSV.`);
+    downloadExpensesCsv(expenses, `expenses-${new Date().toISOString().slice(0, 10)}.csv`);
+    showToast(`Exported ${expenses.length} expense${expenses.length === 1 ? "" : "s"} to CSV.`);
   };
 
   return (
@@ -115,7 +112,7 @@ export default function DashboardPage() {
                 className="flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-2 text-sm font-medium text-primary hover:bg-page"
               >
                 <Download className="h-4 w-4" />
-                Export CSV
+                Export Data
               </button>
               <button
                 type="button"
